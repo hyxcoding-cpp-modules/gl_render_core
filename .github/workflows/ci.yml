@@ -67,6 +67,7 @@ jobs:
                 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                 -DTHIRD_PARTY_DIR="${GITHUB_WORKSPACE}/third_party" \
                 -DGLFW_BUILD_WAYLAND=OFF \
+                -DGLFW_BUILD_X11=OFF \
                 -DBUILD_TESTS=OFF
 
       - name: cppcheck
