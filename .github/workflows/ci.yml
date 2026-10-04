@@ -40,6 +40,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format clang-tidy cppcheck ninja-build cmake
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libglx-dev \
+            libopengl-dev \
+            libglu1-mesa-dev
 
       - name: Cache third_party
         uses: actions/cache@v4
