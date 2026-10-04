@@ -1,0 +1,148 @@
+# ============================================================
+# .clang-tidy
+# 静态检查规则
+# ============================================================
+
+# ---------- 启用的检查 ----------
+# 注意：Checks 是折叠块标量，里面不能写 "#" 注释（会被当成检查名）。
+# 下面两条是专门为本模块关掉的，原因都来自 glm 的内部实现：
+#   cppcoreguidelines-pro-type-union-access
+#     glm 的 vec 内部是匿名联合体，写 v.x / v.y 就会命中，属噪音；
+#   cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
+#     glm 的 mat 通过 operator[] 取值且不做边界检查，同样每次访问都会命中。
+Checks: >
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  clang-analyzer-*,
+  misc-*,
+
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-special-member-functions,
+  -readability-identifier-length,
+  -readability-uppercase-literal-suffix,
+  -readability-magic-numbers,
+  -readability-implicit-bool-conversion,
+  -readability-convert-member-functions-to-static,
+  -readability-function-cognitive-complexity,
+  -readability-isolate-declaration,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-named-parameter,
+  -readability-suspicious-call-argument,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-throwing-static-initialization,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -misc-use-anonymous-namespace,
+  -misc-include-cleaner
+
+# ---------- 警告当错误 ----------
+WarningsAsErrors: ''
+
+# ---------- 头文件过滤 ----------
+HeaderFilterRegex: '^(src|include|tests|examples)/(?!third_party).*'
+
+# ---------- 格式化风格 ----------
+FormatStyle: file
+
+# ---------- 检查选项 ----------
+CheckOptions:
+  # ---------- 命名规则 ----------
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: m_
+  - key: readability-identifier-naming.ProtectedMemberPrefix
+    value: m_
+  - key: readability-identifier-naming.PublicMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  # ---------- 函数长度 ----------
+  - key: readability-function-size.LineThreshold
+    value: 200
+  - key: readability-function-size.StatementThreshold
+    value: 100
+  - key: readability-function-size.BranchThreshold
+    value: 30
+  - key: readability-function-size.ParameterThreshold
+    value: 10
+
+  # ---------- 嵌套深度 ----------
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 50
+
+  # ---------- 魔法数字 ----------
+  - key: cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues
+    value: '0;1;2;3;4;5;10;100;1000'
+  - key: cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues
+    value: '0.0;1.0;0.5;2.0'
+
+  # ---------- 现代 C++ ----------
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: modernize-use-override.AllowOverrideAndFinal
+    value: 'false'
+
+  # ---------- 性能 ----------
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'std::string;std::vector'
+  - key: performance-unnecessary-copy-initialization.AllowedTypes
+    value: ''
+
+  # ---------- bugprone ----------
+  - key: bugprone-argument-comment.StrictMode
+    value: 'false'
+  - key: bugprone-narrowing-conversions.PedanticMode
+    value: 'false'
+
+  # ---------- readability ----------
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: 'true'
+  - key: readability-container-size-empty.Enabled
+    value: 'true'
+
+# ---------- 检查的系统头文件 ----------
+SystemHeaders: false
+
+# ---------- 额外参数 ----------
+# ExtraArgs:
+#   - -std=c++17
+#   - -I${CMAKE_SOURCE_DIR}/include
+#   - -I${CMAKE_SOURCE_DIR}/src

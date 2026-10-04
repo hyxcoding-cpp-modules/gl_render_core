@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+# 说明：third_party/ 下只保留 vendored 的 glad / stb 源码（随仓库提交）。
+# 其余依赖统一由 cmake/ThirdParty.cmake 在配置阶段处理，本地路径写死为
+# THIRD_PARTY_DIR（默认 D:/third_party）：
+#   - 写死的路径命中 → 直接复用，不联网；
+#   - 落空           → 下载官方压缩包并解压到位，解压完成后删除压缩包；
+#   - 解压后的目录层级不写死，用递归查找动态定位包根。
+#
+# 依赖分工：
+#   glm        核心层的公开依赖（camera3d.hpp / mesh_data.hpp 直接包含 <glm/glm.hpp>），
+#              因此**每个 job 的配置阶段都会需要它**；
+#   googletest 只有跑测试时需要（BUILD_TESTS=ON）；
+#   glfw / assimp / glad / stb / 系统 OpenGL 只有 GLRENDER_ENABLE_GL=ON 时才需要。
+#
+# 四个 job 的策略：
+#   lint（Linux）           BUILD_TESTS=OFF，只生成 compile_commands.json 供静态检查；
+#                           第三方目录改到 workspace 下（Linux 没有 D: 盘）；
+#   build-and-test（Win）   默认构建 + 测试，直接用写死的 D:/third_party；
+#   asan（Win）             同上，额外打开 AddressSanitizer；
+#   build-gl（Win）         打开 GLRENDER_ENABLE_GL，验证可选 OpenGL 后端能编译链接。
+#
+# 缓存 key 基于 cmake/ThirdParty.cmake 的哈希：改依赖版本会自动失效并重新下载。
+
+jobs:
+  # ========== 1. 代码质量检查（Linux） ==========
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format clang-tidy cppcheck ninja-build cmake
+
+      - name: Cache third_party
+        uses: actions/cache@v4
+        with:
+          path: third_party
+          key: ${{ runner.os }}-third-party-${{ hashFiles('cmake/ThirdParty.cmake') }}
+
+      - name: Format check
+        run: |
+          find src include tests examples \( -name '*.cpp' -o -name '*.hpp' \) -print0 | \
+          xargs -0 clang-format --dry-run --Werror
+
+      # 关掉 BUILD_TESTS：lint 只需要本项目自己的 compile_commands.json，
+      # 不必为了跑静态检查去下载 googletest（更快，也不依赖网络）。
+      # 但核心层依赖 glm，所以这里仍然会把 glm 取到 third_party/ 下。
+      # Linux runner 没有 D: 盘，必须显式把第三方目录改到 workspace 里。
+      - name: Configure (generate compile_commands.json)
+        run: |
+          cmake -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                -DTHIRD_PARTY_DIR="${GITHUB_WORKSPACE}/third_party" \
+                -DBUILD_TESTS=OFF
+
+      - name: cppcheck
+        run: |
+          cppcheck --project=build/debug/compile_commands.json \
+            --enable=all --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            -i build -i third_party
+
+  # ========== 2. 构建 + 测试（Windows MSVC） ==========
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install LLVM + Ninja
+        run: |
+          choco install llvm ninja -y
+
+      - name: Cache third_party
+        uses: actions/cache@v4
+        with:
+          path: D:/third_party
+          key: ${{ runner.os }}-third-party-${{ hashFiles('cmake/ThirdParty.cmake') }}
+
+      - name: Configure
+        run: cmake -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build/debug
+
+      - name: Test
+        run: ctest --test-dir build/debug --output-on-failure
+
+      - name: clang-tidy
+        shell: bash
+        run: |
+          find src \( -name '*.cpp' \) -print0 | \
+          xargs -0 "/c/Program Files/LLVM/bin/clang-tidy.exe" -p build/debug
+
+  # ========== 3. ASan（Windows MSVC） ==========
+  asan:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: |
+          choco install ninja -y
+
+      - name: Cache third_party
+        uses: actions/cache@v4
+        with:
+          path: D:/third_party
+          key: ${{ runner.os }}-third-party-${{ hashFiles('cmake/ThirdParty.cmake') }}
+
+      - name: Configure with ASan
+        run: cmake -B build/asan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build/asan
+
+      - name: Test with ASan
+        run: ctest --test-dir build/asan --output-on-failure
+
+  # ========== 4. 可选 OpenGL 后端（Windows MSVC） ==========
+  # 只验证「能配置 + 能编译链接」，后端本身没有单元测试（需要 GL 上下文）。
+  # glad / stb 来自仓库内的 third_party/；glfw / assimp 本地没有时会下载官方源码包，
+  # 在本构建树里编译（assimp 会用自己的 CMakeLists 与 C++17，只影响它自己的子树）。
+  build-gl:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Ninja
+        run: |
+          choco install ninja -y
+
+      - name: Cache third_party
+        uses: actions/cache@v4
+        with:
+          path: D:/third_party
+          key: ${{ runner.os }}-third-party-gl-${{ hashFiles('cmake/ThirdParty.cmake') }}
+
+      - name: Configure (GL backend)
+        run: cmake -B build/gl -G Ninja -DCMAKE_BUILD_TYPE=Release -DGLRENDER_ENABLE_GL=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+
+      - name: Build (GL backend)
+        run: cmake --build build/gl --target gl_render_core_gl

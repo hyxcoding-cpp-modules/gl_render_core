@@ -1,0 +1,5 @@
+{
+    "cmake.generator": "MinGW Makefiles",
+    "cmake.cmakePath": "C:/Program Files/CMake/bin/cmake.exe",
+    "cmake.makePath": "D:/TDMGCC/bin/mingw32-make.exe"
+}

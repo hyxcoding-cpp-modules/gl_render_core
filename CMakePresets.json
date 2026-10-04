@@ -1,0 +1,65 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "D:/TDMGCC/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "D:/TDMGCC/bin/g++.exe",
+        "BUILD_TESTS": "ON",
+        "BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "D:/TDMGCC/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "D:/TDMGCC/bin/g++.exe",
+        "BUILD_TESTS": "OFF",
+        "BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": {
+        "ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "gl",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build/gl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "D:/TDMGCC/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "D:/TDMGCC/bin/g++.exe",
+        "GLRENDER_ENABLE_GL": "ON",
+        "BUILD_TESTS": "OFF",
+        "BUILD_EXAMPLES": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "gl", "configurePreset": "gl", "targets": ["gl_render_core_gl"] }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true } }
+  ]
+}
